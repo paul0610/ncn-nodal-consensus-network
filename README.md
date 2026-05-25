@@ -1,5 +1,8 @@
 # NCN — Nodal Consensus Network
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20371994.svg)](https://doi.org/10.5281/zenodo.20371994)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A verification-first knowledge graph ingestion architecture for small language models. NCN extracts atomic, verified claims from technical PDFs through a multi-role LLM swarm (extractor, critics, optional tenth-man, judge, synthesiser), stores them in a property graph with attached source-authority and confidence metadata, and exposes a relevance-gated retrieval surface that lets sub-1B quantised SLMs answer faithfully on long technical reference documents.
 
 ## Why
@@ -77,7 +80,14 @@ Each runner reads from existing evaluation JSONs or builds them from scratch. Se
 
 ## Citation
 
-A pre-print of the companion paper is forthcoming on arXiv. Until then, please reference this repository directly. A versioned snapshot of the release accompanying the arXiv pre-print is planned for deposit on Zenodo (DOI to follow).
+This repository is archived on Zenodo with a permanent DOI:
+
+```
+Rojas Quispe, P. F. (2026). NCN — Nodal Consensus Network: Verification-First Knowledge Graph Ingestion
+for Sub-1B SLMs (v0.1) [Software]. Zenodo. https://doi.org/10.5281/zenodo.20371994
+```
+
+A companion paper is forthcoming on arXiv.
 
 ## License
 
