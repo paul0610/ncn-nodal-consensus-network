@@ -221,7 +221,6 @@ knowledge_bootstrap:
     model: "deepseek-chat"
     api_key: ${DEEPSEEK_API_KEY}
   topics:
-    - "HydeMagne: nickname creado por Paul Rojas, Hyde viene del vocalista de L'Arc-en-Ciel, Magne de magnate"
     - "Paul Rojas: developer Java de Peru, creador de NCN"
   questions_per_topic: 10
   store_verified_only: true
