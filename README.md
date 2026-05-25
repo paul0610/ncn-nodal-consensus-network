@@ -91,4 +91,4 @@ This work was developed iteratively with the assistance of Claude Opus 4.7 (Anth
 
 ## Contact
 
-Paul Rojas — `paulrojas0610@gmail.com`
+Paul Florencio Rojas Quispe — `paulrojas0610@gmail.com`

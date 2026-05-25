@@ -1,4 +1,176 @@
 # NCN — Nodal Consensus Network
+## Complete Architecture Document
+### Version 1.0 — Full implementation context
+
+> _A more detailed Spanish version of this document is preserved at the end of the file. The English version below is a functional summary intended for international readers; refer to the Spanish version for the full module-by-module specification._
+
+---
+
+> **NOTE FOR IMPLEMENTERS:**
+> This document captures the complete design of the NCN system. Each architectural decision was made deliberately. Do not change any design decision without explicit user confirmation. Implement exactly what is described here. When something is unclear, ask before assuming. The implementation order is in Section 21.
+
+---
+
+## TABLE OF CONTENTS
+
+1. Project Vision and Context
+2. Technical Objectives and Differentiators
+3. Technology Stack
+4. Folder Structure
+5. General Architecture
+6. Module 1 — User Interface (CLI + FastAPI)
+7. Module 2 — Orchestrator
+8. Module 3 — Model Swarm (SwarmPool)
+9. Module 4 — Model Providers (ModelProviderPort)
+10. Module 5 — Consensus Engine
+11. Module 6 — Retrieval Module
+12. Module 7 — Ingestion Module
+13. Module 8 — Knowledge Graph (GraphPort)
+14. Module 9 — Auto-extensible Ontology Module
+15. Module 10 — Reputation System (Pareto)
+16. Module 11 — Internet Handling
+17. Module 12 — Knowledge Bootstrap (Teacher-Student)
+18. Complete Configuration (`config.yaml`)
+19. Open Hooks for Phase 2 and Phase 3
+20. Design Decisions and Rationale
+21. Implementation Order
+22. Metrics and Benchmarks for the Paper
+
+---
+
+## 1. PROJECT VISION AND CONTEXT
+
+### 1.1 What is NCN?
+
+NCN (Nodal Consensus Network) is a distributed AI system that replaces the monolithic-large-model paradigm with a *swarm* of small models operating over a living, verified knowledge graph.
+
+Rather than a single large LLM that receives all context as plain text, NCN uses:
+
+- N small models running in parallel (the swarm)
+- A graph database as persistent, structured memory
+- A consensus protocol that verifies which information is reliable before persisting it
+- A system of differentiated roles (extractor, critic, tenth-man, judge, synthesiser)
+
+### 1.2 The Problem NCN Solves
+
+Current agentic systems (e.g., OpenClaw-style frameworks) commonly store skills, instructions, and context as `.md` files. This means every model call injects thousands of plain-text tokens into the prompt, which produces:
+
+- High compute cost (tokens = time + money)
+- Attention degradation in long contexts ("lost in the middle")
+- Static skills that do not learn or evolve
+- Unverified memory (any text can enter)
+
+NCN replaces plain-text injection with surgical queries against the graph:
+
+```
+Current systems:
+prompt = question + skill1.md (2,000 tokens) + skill2.md (1,500 tokens) + context (3,000 tokens)
+total: ~6,500 tokens per call
+
+NCN:
+prompt = question + 8 relevant graph nodes (~200 tokens)
+total: ~200 tokens per call — 97% reduction
+```
+
+### 1.3 Project Roadmap
+
+```
+PHASE 1 (current implementation) — The Engine
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Local SLM swarm via Ollama
+- Evolving knowledge graph (Kuzu DB)
+- Consensus protocol with differentiated roles
+- Ingestion: text, PDFs, on-demand internet
+- Interface: CLI + FastAPI
+- Reputation system (Pareto)
+- Auto-extensible ontology
+- Multi-provider support (local + cloud)
+
+PHASE 2 (future) — The Agent (improved OpenClaw)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Skills stored as graph nodes (not .md)
+- Real persistent memory across sessions via graph
+- Action execution (OpenClaw-style)
+- Dynamic role assignment by reputation
+- Fully local, no required external dependencies
+
+PHASE 3 (future) — Continuous Learning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Periodic crawler over configured sources
+- Autonomous learning without user intervention
+- Automatic 24/7 graph expansion
+```
+
+### 1.4 Target Audience
+
+- Developers who want a local, private, efficient AI system
+- Researchers interested in multi-model consensus
+- Organisations with sensitive data unable to use cloud APIs
+- Power users who want maximum configurability
+
+---
+
+## 2. TECHNICAL OBJECTIVES AND DIFFERENTIATORS
+
+### 2.1 Differentiators vs Existing Projects
+
+| Feature | OpenClaw | MiroFish | NCN |
+|---|---|---|---|
+| Primary objective | Automate tasks | Predict social behaviour | Verify and store knowledge |
+| Memory | Local files (`.md`) | Zep Cloud (external, paid) | Local evolving graph |
+| Verification | None | None | Multi-model consensus |
+| Local / private | Yes | No (requires APIs) | Yes, 100% |
+| Ontology | Fixed | Fixed | Auto-extensible |
+| Provider-agnostic | No | No | Yes |
+| Differentiated roles | No | No | Yes (5 roles) |
+| Tenth-man dissent | No | No | Yes |
+| Reputation system | No | No | Yes (Pareto) |
+
+### 2.2 Technical Contributions for the Paper
+
+1. **Provider-agnostic swarm**: a swarm that mixes local and cloud models under the same consensus protocol.
+2. **Consensus-driven auto-extensible ontology**: the system creates its own node types and namespaces.
+3. **Tenth-Man Protocol**: explicit dissent role that forces epistemic diversity inside the swarm.
+4. **Pareto reputation**: per-model reputation tracked across sessions to weight votes.
+5. **Source-authority hierarchy**: six-level trust scale (`user_direct`, `coach_model`, `consensus`, `web_verified`, `web_raw`, `slm_single`) that constrains how confident the system may be in any single claim.
+6. **Relevance gate**: queries with cosine similarity below threshold short-circuit before reaching the LLM, eliminating one entire class of parametric hallucination.
+
+---
+
+## 3–22. MODULE DETAILS
+
+The remaining sections (technology stack, folder layout, all twelve modules, full `config.yaml`, design rationale, implementation order, and paper-grade benchmarks) are provided in the **Spanish version below**. The Spanish version is the canonical, line-by-line specification used during implementation.
+
+**Brief module map for the English reader:**
+
+| Module | Location | Responsibility |
+|---|---|---|
+| 1. UI | `interface/` (CLI + FastAPI; **not** included in this public repo release) | Operator entry points |
+| 2. Orchestrator | `core/orchestrator.py` | Coordinates all modules; routes queries |
+| 3. Swarm | `swarm/` | Pool of role-tagged LLM nodes |
+| 4. Providers | `providers/` | Adapters for DeepSeek, OpenAI, Anthropic, Qwen, Together, Ollama, custom |
+| 5. Consensus | `consensus/` | Per-claim verification + aggregation + tenth-man |
+| 6. Retrieval | `retrieval/` | Embedder, searcher, claim serialiser, relevance gate |
+| 7. Ingestion | `ingestion/` | text / PDF / docx / epub / web ingestors |
+| 8. Graph | `graph/` | Kuzu adapter (default); FalkorDB / Neo4j optional |
+| 9. Ontology | `ontology/` | Auto-extending predicate vocabulary + namespaces |
+| 10. Reputation | `swarm/reputation.py` | Pareto-weighted vote scoring |
+| 11. Internet | `ingestion/web_ingestor.py` + `learning/scraper.py` | Web search + scraping with verification |
+| 12. Bootstrap | `bootstrap/` | Teacher-student knowledge seeding |
+
+For module-by-module API contracts, file-level pseudocode, configuration options, and reasoning behind each design choice, see the Spanish version starting at the next page break.
+
+---
+
+---
+
+# 📚 SPANISH VERSION — Versión Completa en Español
+
+_The original, full-detail Spanish specification follows. It is preserved verbatim as the canonical reference._
+
+---
+
+# NCN — Nodal Consensus Network
 ## Documento de Arquitectura Completo
 ### Versión 1.0 — Contexto completo para implementación con Claude Code
 
