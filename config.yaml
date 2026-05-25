@@ -1,0 +1,239 @@
+# ============================================================
+# NCN — Nodal Consensus Network
+# config.yaml — configuración completa del sistema
+# ============================================================
+
+system:
+  name: "NCN"
+  version: "0.1.0"
+  log_level: "INFO"
+  log_file: "logs/ncn.log"
+  data_dir: "data/"
+
+interface:
+  cli:
+    enabled: true
+    history_file: ".ncn_history"
+  api:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8000
+    cors_enabled: true
+    cors_origins: ["*"]
+    api_key_required: false
+
+swarm:
+  max_concurrent: 2 #5
+  request_timeout: 120
+  retry_attempts: 2
+  temperature: 0.8
+  nodes:
+    # --- Extractores locales (baratos, paralelos) ---
+    - provider: deepseek
+      model: "deepseek-chat" #"llama3.2:3b"
+      count: 1
+      role: extractor
+      temperature: 0.8
+    # --- DeepSeek como coach: critica, juzga, sintetiza ---
+    - provider: deepseek #deepseek
+      model: "deepseek-chat" #"deepseek-chat"
+      count: 2
+      role: critic
+      temperature: 0.7
+    - provider: deepseek #deepseek
+      model: "deepseek-chat" #"deepseek-chat"
+      count: 1
+      role: tenth_man
+      temperature: 0.9
+    - provider: deepseek
+      model: "deepseek-chat"
+      count: 1
+      role: judge
+      temperature: 0.1
+    - provider: ollama #deepseek
+      model: "llama3.2:1b" #"deepseek-chat"
+      count: 1
+      role: synthesizer
+      temperature: 0.8
+    - provider: deepseek
+      model: "deepseek-chat"
+      count: 1
+      role: planner
+      temperature: 0.9  
+
+providers:
+  ollama:
+    base_url: "http://localhost:11434"
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key: ${OPENAI_API_KEY}
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+  deepseek:
+    base_url: "https://api.deepseek.com"
+    api_key: ${DEEPSEEK_API_KEY}
+  qwen:
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key: ${QWEN_API_KEY}
+  together:
+    base_url: "https://api.together.xyz/v1"
+    api_key: ${TOGETHER_API_KEY}
+  custom:
+    base_url: ${CUSTOM_BASE_URL}
+    api_key: ${CUSTOM_API_KEY}
+
+consensus:
+  verification_threshold: 0.66
+  discard_threshold: 0.33
+  validators_per_claim: 1 #5
+  auto_judge_uncertain: false
+  tenth_man_enabled: false
+  tenth_man_triggers_above: 0.80
+
+source_authority:
+  enabled: true
+  weights:
+    user_direct: 1.00
+    coach_model: 0.90
+    consensus: 0.75
+    web_verified: 0.60
+    web_raw: 0.45
+    slm_single: 0.30
+  correction_enabled: true
+  authority_gap_for_correction: 2
+  confidence_penalty_on_correction: 0.30
+  confidence_bonus_on_high_authority: 0.10
+  source_type_authority:
+    text: "user_direct"
+    pdf: "user_direct"
+    web_search: "web_raw"
+    wikipedia: "web_raw"
+  model_authority:
+    deepseek: "coach_model"
+
+reputation:
+  enabled: true
+  elite_ratio: 0.20
+  elite_vote_multiplier: 2.0
+  decay_per_session: 0.01
+  history_file: "data/reputation.json"
+
+graph:
+  adapter: "kuzu"
+  kuzu:
+    path: "data/graph/ncn.db"
+  falkordb:
+    host: "localhost"
+    port: 6379
+  neo4j:
+    uri: "bolt://localhost:7687"
+    user: "neo4j"
+    password: ${NEO4J_PASSWORD}
+  custom:
+    connection_string: ${CUSTOM_GRAPH_URL}
+  node_types:
+    - persona
+    - concepto
+    - evento
+    - lugar
+    - organizacion
+  namespaces_enabled: true
+  default_namespace: "general"
+  cross_namespace_relations: true
+  temperature_boost: 0.10
+  temperature_decay: 0.05
+  cold_node_threshold: 0.02
+  confidence_boost: 0.05
+  confidence_decay: 0.15
+  uncertain_threshold: 0.30
+
+ontology:
+  auto_extend: true
+  min_confidence: 0.70
+  validators: 3
+  max_custom_types: 100
+  dedup_threshold: 0.85
+  namespace:
+    auto_create: true
+    min_nodes_to_create: 5
+
+retrieval:
+  # Migrado desde all-MiniLM-L6-v2 (noise floor 0.457, gap 0.239)
+  # mpnet-multi tiene gap 0.400 — casi el doble de discriminacion
+  model: "paraphrase-multilingual-MiniLM-L12-v2"
+  top_k_nodes: 5
+  hop_depth: 2
+  token_budget: 800
+  cache_enabled: true
+  cache_ttl_minutes: 30
+  # Calibrado para mpnet-multi: noise max ~0.51, signal ~0.89
+  relevance_threshold: 0.55
+
+  # 0.55 → optimo para mpnet-multi (bloquea noise, pasa signal con margen)
+  # 0.60 → mas conservador
+  # 0.50 → mas permisivo (riesgo de contamination marginal)
+
+agent:
+  enabled: true
+  verify_plan: false   # true = critics validan el plan antes de ejecutar
+
+ingestion:
+  pdf:
+    enabled: true
+    max_size_mb: 50
+    extract_images: false
+  internet:
+    search_mode: "auto"
+    graph_confidence_threshold: 0.60
+    cache_enabled: true
+    cache_ttl_minutes: 60
+    sources:
+      - type: web_search
+        provider: "duckduckgo"
+        enabled: true
+      - type: wikipedia
+        enabled: true
+        languages: ["es", "en"]
+      - type: stackoverflow
+        enabled: false
+        api_key: ${SO_API_KEY}
+        tags: ["python", "java", "azure"]
+        min_score: 50
+      - type: arxiv
+        enabled: false
+        categories: ["cs.AI", "cs.LG", "cs.SE"]
+      - type: github
+        enabled: false
+        api_key: ${GITHUB_TOKEN}
+        content: ["README", "docs/"]
+      - type: rss
+        enabled: false
+        feeds: []
+      - type: documentation
+        enabled: false
+        urls: []
+
+knowledge_bootstrap:
+  enabled: true
+  terms_accepted: true
+  teacher:
+    provider: deepseek
+    model: "deepseek-chat"
+    api_key: ${DEEPSEEK_API_KEY}
+  topics:
+    - "HydeMagne: nickname creado por Paul Rojas, Hyde viene del vocalista de L'Arc-en-Ciel, Magne de magnate"
+    - "Paul Rojas: developer Java de Peru, creador de NCN"
+  questions_per_topic: 10
+  store_verified_only: true
+
+continuous_learning:
+  enabled: false
+  interval_hours: 24
+  max_claims_per_session: 100
+  sources: []
+
+experimental:
+  metrics_enabled: true
+  metrics_file: "data/metrics.jsonl"
+  ab_testing: false
+  ab_config_b: null
